@@ -30,7 +30,7 @@ secrets = json.load(f)
 secret = secrets['secret']
 
 
-def get_db():  # TODO Change username/password combo and move to separate file w/o VCS tracking
+def get_db():
     return MySQLdb.connect(host=secrets['host'],
                            user=secrets['user'],
                            passwd=secrets['passwd'],
