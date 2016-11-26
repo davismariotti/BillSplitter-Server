@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.debug import sensitive_post_parameters, sensitive_variables
 
 f = open('../secrets.JSON', 'r')
 secrets = json.load(f)
@@ -26,6 +27,7 @@ def make_token(sub):
                'exp': datetime.utcnow() + timedelta(days=30)}
     return jwt.encode(payload, secret, algorithm='HS256')
 
+
 @csrf_exempt
 def index(request):
     return HttpResponse()
@@ -33,7 +35,7 @@ def index(request):
 
 @csrf_exempt
 def idprovided(request, person=None):
-    return HttpResponse(json.dumps({'id':person}))
+    return HttpResponse(json.dumps({'id': person}))
 
 
 @csrf_exempt
@@ -50,6 +52,8 @@ def avatar(request):
             error = create_error(4, 'Token expired')
             return HttpResponse(json.dumps(error))
 
+        subject = decoded['sub']
+
         # TODO Check if the user should be able to access the avatar specified
 
         user_id = params['id']
@@ -61,11 +65,8 @@ def avatar(request):
             with open('media/avatar-images/default.jpg', 'rb') as image_file:
                 encoded = image_file.read().encode('base64')
                 return HttpResponse(json.dumps({'image': encoded}))
-
-    else:
-        error = create_error(1, 'Insufficient parameters')
-        return HttpResponse(json.dumps(error))
-    return HttpResponse()
+    error = create_error(1, 'Insufficient parameters')
+    return HttpResponse(json.dumps(error))
 
 
 @csrf_exempt
@@ -101,34 +102,57 @@ def imageupload(request):
         error = create_error(1, 'Insufficient parameters')
         return HttpResponse(json.dumps(error))
 
-    return HttpResponse(json.dumps({'hurray':'yay'}))
+    return HttpResponse(json.dumps({'hurray': 'yay'}))
 
 
+@sensitive_variables('email', 'password')
+@sensitive_post_parameters('email', 'password')
 @csrf_exempt
 def createuser(request):
     params = request.GET  # TODO POST
-    if 'fname' and 'lname' and 'username' and 'email' and 'phonenumber' and 'password' in params:
-        # TODO Sanitize input
+    if 'first_name' and 'last_name' and 'username' and 'email' and 'phone_number' and 'password' in params:
+
+        # Variables
+        first_name = params['first_name']
+        last_name = params['last_name']
+        username = params['username'].lower()
+        email = params['email'].lower()
+        phone_number = params['phone_number'].lower()
+        password = params['password']
 
         db = get_db()
         cur = db.cursor()
+
+        # Check if username is taken
+        sql = """
+        SELECT `username`
+        FROM `BillSplitter`.`person`
+        WHERE `username` = %s
+        """
+
+        cur.execute(sql, (username,))
+        results = cur.fetchall()
+
+        for row in results:
+            if row[0] == username:  # User exists
+                return HttpResponse(json.dumps(create_error(2, 'User already exists')))
+
+        # Username is not taken
+
         sql = """
         INSERT INTO `person` (`username`, `password`, `first_name`, `last_name`, `email`, `phonenumber`)
         VALUES (%s, %s, %s, %s, %s, %s);
         """
 
-        cur.execute(sql, (params['username'], params['password'], params['fname'],
-                          params['lname'], params['email'], params['phonenumber']))
+        cur.execute(sql, (username, password, first_name, last_name, email, phone_number))
         db.commit()
         results = cur.fetchall()
         db.close()
 
         return HttpResponse(results)
-    else:
-        error = create_error(1, 'Insufficient parameters')
-        return HttpResponse(json.dumps(error))
 
-    return HttpResponse()
+    error = create_error(1, 'Insufficient parameters')
+    return HttpResponse(json.dumps(error))
 
 
 @csrf_exempt
