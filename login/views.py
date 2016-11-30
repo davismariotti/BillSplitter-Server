@@ -21,8 +21,6 @@ from datetime import datetime, timedelta
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 
-# TODO Move random key to separate file w/o VCS tracking
-
 
 f = open('../secrets.JSON', 'r')
 secrets = json.load(f)

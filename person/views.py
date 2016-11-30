@@ -110,14 +110,14 @@ def imageupload(request):
 @csrf_exempt
 def createuser(request):
     params = request.GET  # TODO POST
-    if 'first_name' and 'last_name' and 'username' and 'email' and 'phone_number' and 'password' in params:
-
+    # if 'first_name' and 'last_name' and 'username' and 'email' and 'phone_number' and 'password' in params:
+    if all(x in params for x in ['first_name', 'last_name', 'username', 'email', 'phonenumber', 'password']):
         # Variables
         first_name = params['first_name']
         last_name = params['last_name']
         username = params['username'].lower()
         email = params['email'].lower()
-        phone_number = params['phone_number'].lower()
+        phone_number = params['phonenumber'].lower()
         password = params['password']
 
         db = get_db()
