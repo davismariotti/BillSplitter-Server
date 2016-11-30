@@ -27,7 +27,7 @@ def create(request):
     params = request.GET  # TODO POST
 
     # Check parameters
-    if 'token' and 'name' in params:
+    if all(x in params for x in ['token', 'name']):
 
         # Check token
         token = params['token']
@@ -53,10 +53,19 @@ def create(request):
 
         cur.execute(sql, (name, admin))
         db.commit()
+
+        sql = """
+        SELECT LAST_INSERT_ID()
+        FROM `group`
+        """
+
+        cur.execute(sql)
+
         results = cur.fetchall()
+        cur.close()
         db.close()
 
-        return HttpResponse(results)
+        return HttpResponse(json.dumps({'id': results[0][0]}))
 
     error = create_error(1, 'Insufficient parameters')
     return HttpResponse(json.dumps(error))
@@ -107,13 +116,15 @@ def delete(request):
         WHERE `admin` = %s;
         """
 
-        user_id = decoded["sub"]
+        user_id = decoded['sub']
         cur.execute(sql, (user_id,))
 
         if not cur.rowcount:
             db.close()
             error = create_error(2, 'Invalid admin rights')
             return HttpResponse(json.dumps(error))
+
+        # TODO Check if group is empty?
 
         # User has admin rights - delete group
         sql = """
@@ -124,11 +135,9 @@ def delete(request):
         cur.execute(sql, (group_id,))
         db.commit()
         results = cur.fetchall()
+        cur.close()
         db.close()
         return HttpResponse(results)
-
-        error = create_error(5, "Group does not exist")
-        return HttpResponse(json.dumps(error))
 
     error = create_error(1, 'Insufficient parameters')
     return HttpResponse(json.dumps(error))
@@ -139,12 +148,17 @@ def adduser(request):
     params = request.GET  # TODO POST
 
     # Check parameters
-    if 'token' and 'user_id' and 'group_id' in params:
+    if all(x in params for x in ['token', 'user_id', 'group_id']):
 
         # Variables
         token = params['token']
-        user_id = params['user_id']
-        group_id = params['group_id']
+
+        try:
+            user_id = int(params['user_id'])
+            group_id = int(params['group_id'])
+        except ValueError:
+            error = create_error(1, 'Invalid parameters')
+            return HttpResponse(json.dumps(error))
 
         # Check token
         try:
@@ -175,7 +189,7 @@ def adduser(request):
 
         # Check if group exists
         sql = """
-        SELECT 1
+        SELECT status
         FROM `group`
         WHERE `id` = %s;
         """
@@ -186,6 +200,8 @@ def adduser(request):
             db.close()
             error = create_error(5, 'Group does not exist')
             return HttpResponse(json.dumps(error))
+
+        group_result = cur.fetchall()[0]
 
         # Check if user is already in group
         sql = """
@@ -208,11 +224,45 @@ def adduser(request):
         """
 
         cur.execute(sql, (user_id, group_id))
+
+        # Update status
+        statuses = json.loads(group_result[0])
+        has_user = False
+        ids = []
+        for status in statuses:
+            if status['id'] == user_id:
+                has_user = True
+                continue
+
+            # Check if contains specific recipient
+            contains = False
+            for recipient_set in status['data']:
+                if recipient_set['recipient'] == user_id:
+                    contains = True
+            # Don't change anything if the user already has some data
+            if contains:
+                break
+            status['data'].append({'recipient': user_id, 'amount': 0.00})
+            ids.append(status['id'])
+
+        if not has_user:
+            new_data = []
+            for id_ in ids:
+                new_data.append({'recipient': id_, 'amount': 0.00})
+            statuses.append({'id': user_id, 'data': new_data})
+
+        sql = '''
+        UPDATE `group`
+        SET status = %s
+        WHERE id = %s
+        '''
+
+        cur.execute(sql, (json.dumps(statuses), group_id))
         db.commit()
-        results = cur.fetchall()
+        cur.close()
         db.close()
 
-        return HttpResponse(results)
+        return HttpResponse()
 
     error = create_error(1, 'Insufficient parameters')
     return HttpResponse(json.dumps(error))
