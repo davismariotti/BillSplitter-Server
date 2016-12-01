@@ -108,10 +108,7 @@ def index(request):
         else:
             for row in results:
                 if row[0] == decoded['sub']:
-                    return HttpResponse(json.dumps({'username': row[1],
-                                                    'payload': decoded}))
-
-        return HttpResponse(json.dumps({'payload': decoded}))
+                    return HttpResponse(json.dumps({'id': row[0]}))
 
     else:
         error = create_error(1, 'Insufficient parameters')
