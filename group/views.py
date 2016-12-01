@@ -76,7 +76,7 @@ def delete(request):
     params = request.GET  # TODO POST
 
     # Check parameters
-    if 'token' and 'group_id' in params:
+    if all(x in params for x in ['token', 'group_id']):
 
         # Variables
         token = params['token']
@@ -273,7 +273,7 @@ def removeuser(request):
     params = request.GET  # TODO POST
 
     # Check parameters
-    if 'token' and 'user_id' and 'group_id' in params:
+    if all(x in params for x in ['token', 'user_id', 'group_id']):
 
         # Variables
         token = params['token']
@@ -347,6 +347,59 @@ def removeuser(request):
         db.close()
 
         return HttpResponse(results)
+
+    error = create_error(1, 'Insufficient parameters')
+    return HttpResponse(json.dumps(error))
+
+@csrf_exempt
+def info(request):
+    params = request.GET  # TODO POST
+
+    # Check parameters
+    if all(x in params for x in ['token', 'user_id']):
+
+        token = params['token']
+        user_id = params['user_id']
+
+        # Check token
+        try:
+            jwt.decode(token, secret)
+        except jwt.DecodeError:
+            error = create_error(3, 'Invalid token')
+            return HttpResponse(json.dumps(error))
+        except jwt.ExpiredSignatureError:
+            error = create_error(4, 'Token expired')
+            return HttpResponse(json.dumps(error))
+
+        db = get_db()
+        cur = db.cursor()
+
+        sql = """
+              SELECT id, `name`, status
+              FROM `pg`
+              JOIN `group`
+              WHERE pg.personId = %s
+              AND pg.groupId = group.id
+        """
+
+        cur.execute(sql, (user_id,))
+        results = cur.fetchall()
+        response = []
+        for result in results:
+            id_ = result[0]
+            name = result[1]
+            status = json.loads(result[2])
+
+            dict_ = {
+                'id': id_,
+                'name': name,
+                'status': status,
+            }
+            response.append(dict_)
+
+        db.close()
+
+        return HttpResponse(json.dumps(response, indent=4))
 
     error = create_error(1, 'Insufficient parameters')
     return HttpResponse(json.dumps(error))

@@ -52,7 +52,7 @@ def avatar(request):
             error = create_error(4, 'Token expired')
             return HttpResponse(json.dumps(error))
 
-        subject = decoded['sub']
+        # subject = decoded['sub']
 
         # TODO Check if the user should be able to access the avatar specified
 
