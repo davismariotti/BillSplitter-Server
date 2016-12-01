@@ -2,6 +2,7 @@ import json
 import jwt
 import MySQLdb
 from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 
 f = open('../secrets.JSON', 'r')
 secrets = json.load(f)
@@ -36,28 +37,26 @@ def get_db():
                            db=secrets['db'])
 
 
+@csrf_exempt
 def index(request):
     return HttpResponse()
 
 
+@csrf_exempt
 def new(request):
-    params = request.GET  # TODO Change to POST
-    if ('token'
-            and 'groupId'
-            and 'payee'
-            and 'split'
-            and 'amount'
-            and 'date'
-            and 'description' in params):
+    params = request.POST  # TODO Change to POST
+    if all(x in params for x in ['token', 'groupId', 'payee', 'split', 'amount', 'date', 'description']):
 
         # Get parameters
-        token = params['token']
-        group_id = params['groupId']
-        payee = params['payee']
-        split = params['split']
-        transaction_amount = params['amount']
-        date = params['date']
-        description = params['description']
+        try:
+            token = params['token']
+            split = params['split']
+            json_split = json.loads(split)
+            date = params['date']
+            description = params['description']
+        except ValueError:
+            error = create_error(1, 'Invalid parameters')
+            return HttpResponse(json.dumps(error))
 
         try:
             jwt.decode(token, secret)
@@ -68,14 +67,26 @@ def new(request):
             error = create_error(4, 'Token expired')
             return HttpResponse(json.dumps(error))
 
+        try:
+            group_id = int(params['groupId'])
+            payee = int(params['payee'])
+            transaction_amount = float(params['amount'])
+        except ValueError:
+            error = create_error(1, 'Invalid parameters')
+            return HttpResponse(json.dumps(error))
+
         db = get_db()
         cur = db.cursor()
 
         amount_to_pay = {}
 
         # Calculate how much each person should pay
-        for user_id in split:
-            amount_to_pay[user_id] = transaction_amount * split[user_id]
+        try:
+            for user_id in json_split:
+                amount_to_pay[int(user_id)] = transaction_amount * float(json_split[user_id])/100
+        except ValueError:
+            error = create_error(1, 'Invalid parameters')
+            return HttpResponse(json.dumps(error))
 
         # Modify group
         group_sql = '''
@@ -98,14 +109,14 @@ def new(request):
             status_data = status['data']
             if status['id'] == payee:
                 for j in range(0, len(status_data)):
-                    recipient = status_data[j]['amount']
+                    recipient = status_data[j]['recipient']
                     if recipient in amount_to_pay:
                         amount = status_data[j]['amount']
                         amount -= amount_to_pay[recipient]
                         status_data[j]['amount'] = amount
             else:
                 for j in range(0, len(status_data)):
-                    recipient = status_data[j]['amount']
+                    recipient = status_data[j]['recipient']
                     if recipient == payee:
                         amount = status_data[j]['amount']
                         if amount is None:
@@ -114,7 +125,6 @@ def new(request):
                         status_data[j]['amount'] = amount
             status['data'] = status_data
             new_status.append(status)
-
         status_string = json.dumps(new_status)
 
         transaction_sql = '''
@@ -123,17 +133,28 @@ def new(request):
         '''
 
         cur.execute(transaction_sql, (payee, group_id, transaction_amount, split, description, date))
-        cur.execute(group_sql, (group_id,))
+
+        update_sql = '''
+        UPDATE `group`
+        SET status=%s
+        WHERE id=%s
+        '''
+
+        cur.execute(update_sql, (status_string, group_id))
 
         db.commit()
+        db.close()
+        return HttpResponse()
 
     return HttpResponse()
 
 
+@csrf_exempt
 def payback(request):
     return HttpResponse()
 
 
+@csrf_exempt
 def history(request):
     params = request.GET
     if 'token' and 'groupId' in params:
