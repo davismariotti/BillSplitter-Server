@@ -8,5 +8,6 @@ urlpatterns = [
     url(r'^avatar/', views.avatar, name='avatar'),
     url(r'^createuser/', views.createuser, name='createuser'),
     url(r'^update/', views.update, name='update'),
+    url(r'^info/', views.info, name='info'),
     url(r'^(?P<person>[-\w]+)/$', views.idprovided, name='id'),
 ]

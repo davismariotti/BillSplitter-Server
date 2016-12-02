@@ -105,6 +105,61 @@ def imageupload(request):
     return HttpResponse(json.dumps({'hurray': 'yay'}, indent=4))
 
 
+@csrf_exempt
+def info(request):
+    params = request.POST
+    if all(x in params for x in ['token', 'userIds']):
+        token = params['token']
+        try:
+            decoded = jwt.decode(token, secret)
+        except jwt.DecodeError:
+            error = create_error(3, 'Invalid token')
+            return HttpResponse(json.dumps(error, indent=4))
+        except jwt.ExpiredSignatureError:
+            error = create_error(4, 'Token expired')
+            return HttpResponse(json.dumps(error, indent=4))
+
+        try:
+            ids = json.loads(params['userIds'])
+        except ValueError:
+            error = create_error(1, 'Invalid parameters')
+            return HttpResponse(json.dumps(error, indent=4))
+
+        db = get_db()
+        cur = db.cursor()
+
+        sql_tuple = ()
+        sql_commas = ""
+        for id_ in ids:
+            sql_commas += "%s, "
+            sql_tuple += (str(id_),)
+        sql_commas = sql_commas[:-2]
+
+        sql = """
+        SELECT id, username, first_name, last_name, email, phonenumber
+        FROM person
+        WHERE id IN (""" + sql_commas + """);
+        """
+
+        cur.execute(sql, sql_tuple)
+        results = cur.fetchall()
+
+        people = []
+
+        for result in results:
+            people.append({'id': result[0],
+                           'username': result[1],
+                           'first_name': result[2],
+                           'last_name': result[3],
+                           'email': result[4],
+                           'phonenumber': result[5]})
+
+        return HttpResponse(json.dumps(people, indent=4))
+
+    error = create_error(1, 'Insufficient parameters')
+    return HttpResponse(json.dumps(error, indent=4))
+
+
 @sensitive_variables('email', 'password')
 @sensitive_post_parameters('email', 'password')
 @csrf_exempt
