@@ -35,22 +35,22 @@ def index(request):
 
 @csrf_exempt
 def idprovided(request, person=None):
-    return HttpResponse(json.dumps({'id': person}))
+    return HttpResponse(json.dumps({'id': person}, indent=4))
 
 
 @csrf_exempt
 def avatar(request):
-    params = request.GET  # TODO Change to POST
-    if 'token' and 'id' in params:
+    params = request.POST
+    if all(x in params for x in ['token', 'id']):
         token = params['token']
         try:
             decoded = jwt.decode(token, secret)
         except jwt.DecodeError:
             error = create_error(3, 'Invalid token')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
         except jwt.ExpiredSignatureError:
             error = create_error(4, 'Token expired')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         # subject = decoded['sub']
 
@@ -60,13 +60,13 @@ def avatar(request):
         try:
             with open('media/avatar-images/%s.jpg' % user_id, 'rb') as image_file:
                 encoded = image_file.read().encode('base64')
-                return HttpResponse(json.dumps({'image': encoded}))
+                return HttpResponse(json.dumps({'image': encoded}, indent=4))
         except IOError:
             with open('media/avatar-images/default.jpg', 'rb') as image_file:
                 encoded = image_file.read().encode('base64')
-                return HttpResponse(json.dumps({'image': encoded}))
+                return HttpResponse(json.dumps({'image': encoded}, indent=4))
     error = create_error(1, 'Insufficient parameters')
-    return HttpResponse(json.dumps(error))
+    return HttpResponse(json.dumps(error, indent=4))
 
 
 @csrf_exempt
@@ -78,16 +78,16 @@ def imageupload(request):
         return HttpResponse(json.dumps(error))
 
     image = params['image']
-    if 'token' and 'image' in params:
+    if all(x in params for x in ['token', 'image']):
         token = params['token']
         try:
             decoded = jwt.decode(token, secret)
         except jwt.DecodeError:
             error = create_error(3, 'Invalid token')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
         except jwt.ExpiredSignatureError:
             error = create_error(4, 'Token expired')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         subject = decoded['sub']
 
@@ -97,19 +97,19 @@ def imageupload(request):
                 fh.write(image_data.decode('base64'))
         else:
             error = create_error(1, 'Insufficient parameters')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
     else:
         error = create_error(1, 'Insufficient parameters')
-        return HttpResponse(json.dumps(error))
+        return HttpResponse(json.dumps(error, indent=4))
 
-    return HttpResponse(json.dumps({'hurray': 'yay'}))
+    return HttpResponse(json.dumps({'hurray': 'yay'}, indent=4))
 
 
 @sensitive_variables('email', 'password')
 @sensitive_post_parameters('email', 'password')
 @csrf_exempt
 def createuser(request):
-    params = request.GET  # TODO POST
+    params = request.POST
     # if 'first_name' and 'last_name' and 'username' and 'email' and 'phone_number' and 'password' in params:
     if all(x in params for x in ['first_name', 'last_name', 'username', 'email', 'phonenumber', 'password']):
         # Variables
@@ -135,7 +135,7 @@ def createuser(request):
 
         for row in results:
             if row[0] == username:  # User exists
-                return HttpResponse(json.dumps(create_error(2, 'User already exists')))
+                return HttpResponse(json.dumps(create_error(2, 'User already exists'), indent=4))
 
         # Username is not taken
 
@@ -152,12 +152,12 @@ def createuser(request):
         return HttpResponse(results)
 
     error = create_error(1, 'Insufficient parameters')
-    return HttpResponse(json.dumps(error))
+    return HttpResponse(json.dumps(error, indent=4))
 
 
 @csrf_exempt
 def update(request):
-    params = request.GET  # TODO POST
+    params = request.POST
 
     # Check token
     if 'token' in params:
@@ -166,13 +166,13 @@ def update(request):
             decoded = jwt.decode(token, secret)
         except jwt.DecodeError:
             error = create_error(3, 'Invalid token')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
         except jwt.ExpiredSignatureError:
             error = create_error(4, 'Token expired')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
     else:
         error = create_error(1, 'Insufficient parameters')
-        return HttpResponse(json.dumps(error))
+        return HttpResponse(json.dumps(error, indent=4))
 
     subject = decoded['sub']
 
@@ -202,7 +202,7 @@ def update(request):
     # If no parameters are given, no update needs to be done
     if sql_set == '':
         error = create_error(1, 'Insufficient parameters')
-        return HttpResponse(json.dumps(error))
+        return HttpResponse(json.dumps(error, indent=4))
 
     # Remove trailing comma
     sql_set = sql_set[:-2]
@@ -224,8 +224,8 @@ def update(request):
     cur.execute(sql, sql_tuple)
     db.commit()
 
-    return HttpResponse(json.dumps({'Result': 'Success!'}))
+    return HttpResponse(json.dumps({'Result': 'Success!'}, indent=4))
 
 
 def create_error(error_code, error_description):
-    return {'Error Code': error_code, 'Description': error_description}
+    return {'Error': {'Error Code': error_code, 'Description': error_description}}

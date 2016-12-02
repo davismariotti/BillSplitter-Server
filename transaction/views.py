@@ -44,7 +44,7 @@ def index(request):
 
 @csrf_exempt
 def new(request):
-    params = request.POST  # TODO Change to POST
+    params = request.POST
     if all(x in params for x in ['token', 'groupId', 'payee', 'split', 'amount', 'date', 'description']):
 
         # Get parameters
@@ -62,10 +62,10 @@ def new(request):
             jwt.decode(token, secret)
         except jwt.DecodeError:
             error = create_error(3, 'Invalid token')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
         except jwt.ExpiredSignatureError:
             error = create_error(4, 'Token expired')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         try:
             group_id = int(params['groupId'])
@@ -73,7 +73,7 @@ def new(request):
             transaction_amount = float(params['amount'])
         except ValueError:
             error = create_error(1, 'Invalid parameters')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         db = get_db()
         cur = db.cursor()
@@ -86,7 +86,7 @@ def new(request):
                 amount_to_pay[int(user_id)] = transaction_amount * float(json_split[user_id])/100
         except ValueError:
             error = create_error(1, 'Invalid parameters')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         # Modify group
         group_sql = '''
@@ -156,24 +156,24 @@ def payback(request):
 
 @csrf_exempt
 def history(request):
-    params = request.GET
-    if 'token' and 'groupId' in params:
+    params = request.POST
+    if all(x in params for x in ['token', 'groupId']):
 
         token = params['token']
         try:
             group_id = params['groupId']
         except ValueError:
             error = create_error(1, 'Invalid parameters')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         try:
             jwt.decode(token, secret)
         except jwt.DecodeError:
             error = create_error(3, 'Invalid token')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
         except jwt.ExpiredSignatureError:
             error = create_error(4, 'Token expired')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         db = get_db()
         cur = db.cursor()
@@ -201,11 +201,11 @@ def history(request):
             transactions.append(transaction.output())
 
         data['transactions'] = transactions
-        return HttpResponse(json.dumps(data))
+        return HttpResponse(json.dumps(data, indent=4))
 
     error = create_error(1, 'Insufficient parameters')
-    return HttpResponse(json.dumps(error))
+    return HttpResponse(json.dumps(error, indent=4))
 
 
 def create_error(error_code, error_description):
-    return {'Error Code': error_code, 'Description': error_description}
+    return {'Error': {'Error Code': error_code, 'Description': error_description}}

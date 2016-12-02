@@ -44,8 +44,8 @@ def make_token(sub):
 
 @csrf_exempt  # Allows POST requests without CSRF cookie handling
 def index(request):
-    params = request.GET  # TODO Change to POST
-    if 'username' in params and 'password' in params:
+    params = request.POST
+    if all(x in params for x in ['username', 'password']):
         # Login with username and password
         username = params['username']
         password = params['password']
@@ -53,7 +53,7 @@ def index(request):
         cur = db.cursor()
 
         sql = """
-        SELECT `id`, `username`, `password`
+        SELECT `id`, `username`, password, email, first_name, last_name, phonenumber
         FROM BillSplitter.`person`
         WHERE `username`=%s
         """
@@ -65,17 +65,21 @@ def index(request):
 
         if len(results) == 0:
             error = create_error(1, 'Username/password incorrect')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
         else:
             for row in results:
                 if row[1] == username:
                     if password == row[2]:
                         response = {'id': row[0],
                                     'username': row[1],
-                                    'token': make_token(row[0])}
+                                    'token': make_token(row[0]),
+                                    'email': row[3],
+                                    'first_name': row[4],
+                                    'last_name': row[5],
+                                    'phonenumber': row[6]}
                         return HttpResponse(json.dumps(response))
             error = create_error(1, 'Username/password incorrect')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
     elif 'token' in params:
         # Verify token is valid
         token = params['token']
@@ -83,10 +87,10 @@ def index(request):
             decoded = jwt.decode(token, secret)
         except jwt.DecodeError:
             error = create_error(3, 'Invalid token')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
         except jwt.ExpiredSignatureError:
             error = create_error(4, 'Token expired')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         # This point is only reached if no errors are thrown
 
@@ -104,16 +108,16 @@ def index(request):
 
         if len(results) == 0:
             error = create_error(3, 'Invalid token')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
         else:
             for row in results:
                 if row[0] == decoded['sub']:
-                    return HttpResponse(json.dumps({'id': row[0]}))
+                    return HttpResponse(json.dumps({'id': row[0]}, indent=4))
 
     else:
         error = create_error(1, 'Insufficient parameters')
-        return HttpResponse(json.dumps(error))
+        return HttpResponse(json.dumps(error, indent=4))
 
 
 def create_error(error_code, error_description):
-    return {'Error Code': error_code, 'Description': error_description}
+    return {'Error': {'Error Code': error_code, 'Description': error_description}}

@@ -24,7 +24,7 @@ def index(request):
 
 @csrf_exempt
 def create(request):
-    params = request.GET  # TODO POST
+    params = request.POST
 
     # Check parameters
     if all(x in params for x in ['token', 'name']):
@@ -35,10 +35,10 @@ def create(request):
             decoded = jwt.decode(token, secret)
         except jwt.DecodeError:
             error = create_error(3, 'Invalid token')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
         except jwt.ExpiredSignatureError:
             error = create_error(4, 'Token expired')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         name = params['name']
         admin = decoded["sub"]
@@ -65,15 +65,15 @@ def create(request):
         cur.close()
         db.close()
 
-        return HttpResponse(json.dumps({'id': results[0][0]}))
+        return HttpResponse(json.dumps({'id': results[0][0]}, indent=4))
 
     error = create_error(1, 'Insufficient parameters')
-    return HttpResponse(json.dumps(error))
+    return HttpResponse(json.dumps(error, indent=4))
 
 
 @csrf_exempt
 def delete(request):
-    params = request.GET  # TODO POST
+    params = request.POST
 
     # Check parameters
     if all(x in params for x in ['token', 'group_id']):
@@ -87,10 +87,10 @@ def delete(request):
             decoded = jwt.decode(token, secret)
         except jwt.DecodeError:
             error = create_error(3, 'Invalid token')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
         except jwt.ExpiredSignatureError:
             error = create_error(4, 'Token expired')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         db = get_db()
         cur = db.cursor()
@@ -107,7 +107,7 @@ def delete(request):
         if not cur.rowcount:
             db.close()
             error = create_error(5, 'Group does not exist')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         # Check if current user is a group admin
         sql = """
@@ -122,7 +122,7 @@ def delete(request):
         if not cur.rowcount:
             db.close()
             error = create_error(2, 'Invalid admin rights')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         # TODO Check if group is empty?
 
@@ -140,12 +140,12 @@ def delete(request):
         return HttpResponse(results)
 
     error = create_error(1, 'Insufficient parameters')
-    return HttpResponse(json.dumps(error))
+    return HttpResponse(json.dumps(error, indent=4))
 
 
 @csrf_exempt
 def adduser(request):
-    params = request.GET  # TODO POST
+    params = request.POST
 
     # Check parameters
     if all(x in params for x in ['token', 'user_id', 'group_id']):
@@ -158,17 +158,17 @@ def adduser(request):
             group_id = int(params['group_id'])
         except ValueError:
             error = create_error(1, 'Invalid parameters')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         # Check token
         try:
             jwt.decode(token, secret)
         except jwt.DecodeError:
             error = create_error(3, 'Invalid token')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
         except jwt.ExpiredSignatureError:
             error = create_error(4, 'Token expired')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         db = get_db()
         cur = db.cursor()
@@ -185,7 +185,7 @@ def adduser(request):
         if not cur.rowcount:
             db.close()
             error = create_error(6, 'User does not exist')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         # Check if group exists
         sql = """
@@ -215,7 +215,7 @@ def adduser(request):
         if cur.rowcount:
             db.close()
             error = create_error(7, 'User already in group')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         # Insert user into group
         sql = """
@@ -265,12 +265,12 @@ def adduser(request):
         return HttpResponse()
 
     error = create_error(1, 'Insufficient parameters')
-    return HttpResponse(json.dumps(error))
+    return HttpResponse(json.dumps(error, indent=4))
 
 
 @csrf_exempt
 def removeuser(request):
-    params = request.GET  # TODO POST
+    params = request.POST
 
     # Check parameters
     if all(x in params for x in ['token', 'user_id', 'group_id']):
@@ -285,10 +285,10 @@ def removeuser(request):
             jwt.decode(token, secret)
         except jwt.DecodeError:
             error = create_error(3, 'Invalid token')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
         except jwt.ExpiredSignatureError:
             error = create_error(4, 'Token expired')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         db = get_db()
         cur = db.cursor()
@@ -305,7 +305,7 @@ def removeuser(request):
         if not cur.rowcount:
             db.close()
             error = create_error(6, 'User does not exist')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         # Check if group exists
         sql = """
@@ -319,7 +319,7 @@ def removeuser(request):
         if not cur.rowcount:
             db.close()
             error = create_error(5, 'Group does not exist')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         # Check if user is in group
         sql = """
@@ -333,7 +333,7 @@ def removeuser(request):
         if not cur.rowcount:
             db.close()
             error = create_error(8, 'User not in group')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         # Delete user from group
         sql = """
@@ -349,11 +349,12 @@ def removeuser(request):
         return HttpResponse(results)
 
     error = create_error(1, 'Insufficient parameters')
-    return HttpResponse(json.dumps(error))
+    return HttpResponse(json.dumps(error, indent=4))
+
 
 @csrf_exempt
 def info(request):
-    params = request.GET  # TODO POST
+    params = request.POST
 
     # Check parameters
     if all(x in params for x in ['token', 'user_id']):
@@ -366,10 +367,10 @@ def info(request):
             jwt.decode(token, secret)
         except jwt.DecodeError:
             error = create_error(3, 'Invalid token')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
         except jwt.ExpiredSignatureError:
             error = create_error(4, 'Token expired')
-            return HttpResponse(json.dumps(error))
+            return HttpResponse(json.dumps(error, indent=4))
 
         db = get_db()
         cur = db.cursor()
@@ -379,7 +380,7 @@ def info(request):
               FROM `pg`
               JOIN `group`
               WHERE pg.personId = %s
-              AND pg.groupId = group.id
+              AND pg.groupId = group.id;
         """
 
         cur.execute(sql, (user_id,))
@@ -390,10 +391,44 @@ def info(request):
             name = result[1]
             status = json.loads(result[2])
 
+            sql = """
+            SELECT payee, amount, split, description, date
+            FROM transaction
+            WHERE groupId = %s;
+            """
+
+            cur.execute(sql, (id_,))
+            results_ = cur.fetchall()
+
+            transactions = []
+
+            for result_ in results_:
+                print result_
+                transactions.append({'payee': result_[0],
+                                     'amount': result_[1],
+                                     'split': json.loads(result_[2]),
+                                     'description': result_[3],
+                                     'date': result_[4].strftime('%Y-%m-%d')})
+            sql = """
+            SELECT personId
+            FROM pg
+            WHERE groupId = %s;
+            """
+
+            cur.execute(sql, (id_,))
+            results_ = cur.fetchall()
+
+            members = []
+
+            for result_ in results_:
+                members.append(result_[0])
+
             dict_ = {
                 'id': id_,
                 'name': name,
                 'status': status,
+                'transactions': transactions,
+                'members': members
             }
             response.append(dict_)
 
@@ -402,8 +437,8 @@ def info(request):
         return HttpResponse(json.dumps(response, indent=4))
 
     error = create_error(1, 'Insufficient parameters')
-    return HttpResponse(json.dumps(error))
+    return HttpResponse(json.dumps(error, indent=4))
 
 
 def create_error(error_code, error_description):
-    return {'Error Code': error_code, 'Description': error_description}
+    return {'Error': {'Error Code': error_code, 'Description': error_description}}
