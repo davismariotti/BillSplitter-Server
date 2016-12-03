@@ -403,7 +403,6 @@ def info(request):
             transactions = []
 
             for result_ in results_:
-                print result_
                 transactions.append({'payee': result_[0],
                                      'amount': result_[1],
                                      'split': json.loads(result_[2]),

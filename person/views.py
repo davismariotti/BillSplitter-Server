@@ -273,9 +273,6 @@ def update(request):
     WHERE `id` = %s
     """
 
-    print sql
-    print sql_tuple
-
     cur.execute(sql, sql_tuple)
     db.commit()
 
