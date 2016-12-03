@@ -160,12 +160,53 @@ def info(request):
     return HttpResponse(json.dumps(error, indent=4))
 
 
+@csrf_exempt
+def exists(request):
+    params = request.POST
+    if all(x in params for x in ['token', 'username']):
+
+        username = params['username']
+        token = params['token']
+
+        try:
+            decoded = jwt.decode(token, secret)
+        except jwt.DecodeError:
+            error = create_error(3, 'Invalid token')
+            return HttpResponse(json.dumps(error, indent=4))
+        except jwt.ExpiredSignatureError:
+            error = create_error(4, 'Token expired')
+            return HttpResponse(json.dumps(error, indent=4))
+
+        sql = """
+        SELECT id
+        FROM person
+        WHERE username=%s;
+        """
+
+        db = get_db()
+        cur = db.cursor()
+        cur.execute(sql, (username,))
+
+        results = cur.fetchall()
+
+        db.close()
+        cur.close()
+
+        if len(results) == 0:
+            error = create_error(2, "User does not exist")
+            return HttpResponse(json.dumps(error, indent=4))
+        else:
+            return HttpResponse(json.dumps({"id": results[0][0]}, indent=4))
+
+    error = create_error(1, 'Insufficient parameters')
+    return HttpResponse(json.dumps(error, indent=4))
+
+
 @sensitive_variables('email', 'password')
 @sensitive_post_parameters('email', 'password')
 @csrf_exempt
 def createuser(request):
     params = request.POST
-    # if 'first_name' and 'last_name' and 'username' and 'email' and 'phone_number' and 'password' in params:
     if all(x in params for x in ['first_name', 'last_name', 'username', 'email', 'phonenumber', 'password']):
         # Variables
         first_name = params['first_name']
