@@ -148,14 +148,14 @@ def adduser(request):
     params = request.POST
 
     # Check parameters
-    if all(x in params for x in ['token', 'user_id', 'group_id']):
+    if all(x in params for x in ['token', 'userId', 'groupId']):
 
         # Variables
         token = params['token']
 
         try:
-            user_id = int(params['user_id'])
-            group_id = int(params['group_id'])
+            user_id = int(params['userId'])
+            group_id = int(params['groupId'])
         except ValueError:
             error = create_error(1, 'Invalid parameters')
             return HttpResponse(json.dumps(error, indent=4))
@@ -262,7 +262,7 @@ def adduser(request):
         cur.close()
         db.close()
 
-        return HttpResponse()
+        return HttpResponse(json.dumps({"Result": "Success"}, indent=4))
 
     error = create_error(1, 'Insufficient parameters')
     return HttpResponse(json.dumps(error, indent=4))
@@ -360,7 +360,7 @@ def info(request):
     if all(x in params for x in ['token', 'userId']):
 
         token = params['token']
-        user_id = params['user_id']
+        user_id = params['userId']
 
         # Check token
         try:
