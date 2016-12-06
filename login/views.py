@@ -53,7 +53,7 @@ def index(request):
         cur = db.cursor()
 
         sql = """
-        SELECT `id`, `username`, password, email, first_name, last_name, phonenumber
+        SELECT `id`, `username`, password, email, first_name, last_name, phone_number
         FROM BillSplitter.`person`
         WHERE `username`=%s
         """
