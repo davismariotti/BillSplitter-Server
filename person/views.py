@@ -152,7 +152,7 @@ def info(request):
                            'first_name': result[2],
                            'last_name': result[3],
                            'email': result[4],
-                           'phonenumber': result[5]})
+                           'phoneNumber': result[5]})
 
         return HttpResponse(json.dumps(people, indent=4))
 
@@ -207,13 +207,13 @@ def exists(request):
 @csrf_exempt
 def create(request):
     params = request.POST
-    if all(x in params for x in ['firstName', 'lastName', 'username', 'email', 'phonenumber', 'password']):
+    if all(x in params for x in ['firstName', 'lastName', 'username', 'email', 'phoneNumber', 'password']):
         # Variables
         first_name = params['first_name']
         last_name = params['last_name']
         username = params['username'].lower()
         email = params['email'].lower()
-        phone_number = params['phonenumber'].lower()
+        phone_number = params['phoneNumber'].lower()
         password = params['password']
 
         db = get_db()
@@ -286,7 +286,7 @@ def update(request):
     if 'email' in params:
         sql_set += '`email`=%s, '
         sql_tuple += (params['email'],)
-    if 'phonenumber' in params:
+    if 'phoneNumber' in params:
         sql_set += '`phonenumber`=%s, '
         sql_tuple += (params['phonenumber'],)
     if 'password' in params:
