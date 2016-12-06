@@ -205,9 +205,9 @@ def exists(request):
 @sensitive_variables('email', 'password')
 @sensitive_post_parameters('email', 'password')
 @csrf_exempt
-def createuser(request):
+def create(request):
     params = request.POST
-    if all(x in params for x in ['first_name', 'last_name', 'username', 'email', 'phonenumber', 'password']):
+    if all(x in params for x in ['firstName', 'lastName', 'username', 'email', 'phonenumber', 'password']):
         # Variables
         first_name = params['first_name']
         last_name = params['last_name']
