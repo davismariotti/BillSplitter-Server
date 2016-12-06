@@ -209,8 +209,8 @@ def create(request):
     params = request.POST
     if all(x in params for x in ['firstName', 'lastName', 'username', 'email', 'phoneNumber', 'password']):
         # Variables
-        first_name = params['first_name']
-        last_name = params['last_name']
+        first_name = params['firstName']
+        last_name = params['lastName']
         username = params['username'].lower()
         email = params['email'].lower()
         phone_number = params['phoneNumber'].lower()
@@ -231,7 +231,7 @@ def create(request):
 
         for row in results:
             if row[0] == username:  # User exists
-                return HttpResponse(json.dumps(create_error(2, 'User already exists'), indent=4))
+                return HttpResponse(json.dumps(create_error(2, 'Username taken'), indent=4))
 
         # Username is not taken
 
@@ -242,10 +242,19 @@ def create(request):
 
         cur.execute(sql, (username, password, first_name, last_name, email, phone_number))
         db.commit()
+
+        sql = """
+        SELECT LAST_INSERT_ID()
+        FROM `group`
+        """
+
+        cur.execute(sql)
+
         results = cur.fetchall()
+        cur.close()
         db.close()
 
-        return HttpResponse(results)
+        return HttpResponse(json.dumps({'id': results[0][0], 'token': make_token(results[0][0])}, indent=4))
 
     error = create_error(1, 'Insufficient parameters')
     return HttpResponse(json.dumps(error, indent=4))
