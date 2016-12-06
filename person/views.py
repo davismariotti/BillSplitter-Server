@@ -136,7 +136,7 @@ def info(request):
         sql_commas = sql_commas[:-2]
 
         sql = """
-        SELECT id, username, first_name, last_name, email, phonenumber
+        SELECT id, username, first_name, last_name, email, phone_number
         FROM person
         WHERE id IN (""" + sql_commas + """);
         """
@@ -236,7 +236,7 @@ def create(request):
         # Username is not taken
 
         sql = """
-        INSERT INTO `person` (`username`, `password`, `first_name`, `last_name`, `email`, `phonenumber`)
+        INSERT INTO `person` (`username`, `password`, `first_name`, `last_name`, `email`, `phone_number`)
         VALUES (%s, %s, %s, %s, %s, %s);
         """
 
@@ -296,8 +296,8 @@ def update(request):
         sql_set += '`email`=%s, '
         sql_tuple += (params['email'],)
     if 'phoneNumber' in params:
-        sql_set += '`phonenumber`=%s, '
-        sql_tuple += (params['phonenumber'],)
+        sql_set += '`phone_number`=%s, '
+        sql_tuple += (params['phoneNumber'],)
     if 'password' in params:
         sql_set += '`password`=%s, '
         sql_tuple += (params['password'],)
