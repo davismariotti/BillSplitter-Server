@@ -145,26 +145,95 @@ def new(request):
         db.commit()
         db.close()
         return HttpResponse()
-
-    return HttpResponse()
+    error = create_error(1, 'Insufficient parameters')
+    return HttpResponse(json.dumps(error, indent=4))
 
 
 @csrf_exempt
 def payback(request):
-    return HttpResponse()
+    params = request.POST
+    if all(x in params for x in ['token', 'groupId', 'from', 'to', 'amount']):
+        token = params['token']
+        group_id = params['groupId']
+
+        try:
+            jwt.decode(token, secret)
+        except jwt.DecodeError:
+            error = create_error(3, 'Invalid token')
+            return HttpResponse(json.dumps(error, indent=4))
+        except jwt.ExpiredSignatureError:
+            error = create_error(4, 'Token expired')
+            return HttpResponse(json.dumps(error, indent=4))
+
+        try:
+            from_id = int(params['from'])
+            to_id = int(params['to'])
+            transaction_amount = float(params['amount'])
+        except ValueError:
+            error = create_error(1, 'Invalid parameters')
+            return HttpResponse(json.dumps(error, indent=4))
+
+        db = get_db()
+        cur = db.cursor()
+
+        # Modify group
+        group_sql = '''
+        SELECT `status`
+        FROM `group`
+        WHERE `id` = %s
+        '''
+
+        cur.execute(group_sql, (group_id,))
+        results = cur.fetchall()
+
+        if len(results) == 0:
+            return HttpResponse(json.dumps(create_error(2, "Group does not exist"), indent=4))  # TODO
+
+        status_array = json.loads(results[0][0])
+        new_status = []
+
+        for i in range(0, len(status_array)):
+            status = status_array[i]
+            status_data = status['data']
+            if status['id'] == int(to_id):
+                for j in range(0, len(status_data)):
+                    recipient = status_data[j]['recipient']
+                    if recipient == from_id:
+                        amount = status_data[j]['amount']
+                        amount += transaction_amount
+                        status_data[j]['amount'] = amount
+            elif status['id'] == int(from_id):
+                for j in range(0, len(status_data)):
+                    recipient = status_data[j]['recipient']
+                    if recipient == to_id:
+                        amount = status_data[j]['amount']
+                        amount -= transaction_amount
+                        status_data[j]['amount'] = amount
+            status['data'] = status_data
+            new_status.append(status)
+        status_string = json.dumps(new_status)
+
+        update_sql = '''
+        UPDATE `group`
+        SET status=%s
+        WHERE id=%s
+        '''
+
+        cur.execute(update_sql, (status_string, group_id))
+        db.commit()
+        db.close()
+        return HttpResponse(json.dumps(new_status, indent=4))
+
+    error = create_error(1, 'Insufficient parameters')
+    return HttpResponse(json.dumps(error, indent=4))
 
 
 @csrf_exempt
 def history(request):
     params = request.POST
     if all(x in params for x in ['token', 'groupId']):
-
         token = params['token']
-        try:
-            group_id = params['groupId']
-        except ValueError:
-            error = create_error(1, 'Invalid parameters')
-            return HttpResponse(json.dumps(error, indent=4))
+        group_id = params['groupId']
 
         try:
             jwt.decode(token, secret)
@@ -196,7 +265,7 @@ def history(request):
 
         for result in results:
             transaction = Transaction(result[0], result[1],
-                                      result[2], result[3],
+                                      result[2], json.loads(result[3]),
                                       result[4], result[5])
             transactions.append(transaction.output())
 
@@ -208,4 +277,4 @@ def history(request):
 
 
 def create_error(error_code, error_description):
-    return {'Error': {'Error Code': error_code, 'Description': error_description}}
+    return {'Error': {'Code': error_code, 'Description': error_description}}

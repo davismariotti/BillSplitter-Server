@@ -321,4 +321,4 @@ def update(request):
 
 
 def create_error(error_code, error_description):
-    return {'Error': {'Error Code': error_code, 'Description': error_description}}
+    return {'Error': {'Code': error_code, 'Description': error_description}}

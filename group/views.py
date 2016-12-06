@@ -273,12 +273,12 @@ def removeuser(request):
     params = request.POST
 
     # Check parameters
-    if all(x in params for x in ['token', 'user_id', 'group_id']):
+    if all(x in params for x in ['token', 'userId', 'groupId']):
 
         # Variables
         token = params['token']
-        user_id = params['user_id']
-        group_id = params['group_id']
+        user_id = params['userId']
+        group_id = params['groupId']
 
         # Check token
         try:
@@ -346,7 +346,7 @@ def removeuser(request):
         results = cur.fetchall()
         db.close()
 
-        return HttpResponse(results)
+        return HttpResponse(json.dumps({'Result': 'Success'}, indent=4))
 
     error = create_error(1, 'Insufficient parameters')
     return HttpResponse(json.dumps(error, indent=4))
@@ -357,7 +357,7 @@ def info(request):
     params = request.POST
 
     # Check parameters
-    if all(x in params for x in ['token', 'user_id']):
+    if all(x in params for x in ['token', 'userId']):
 
         token = params['token']
         user_id = params['user_id']
@@ -439,5 +439,44 @@ def info(request):
     return HttpResponse(json.dumps(error, indent=4))
 
 
+@csrf_exempt
+def status(request):
+    params = request.POST
+    if all(x in params for x in ['token', 'groupId']):
+        token = params['token']
+        group_id = params['groupId']
+
+        # Check token
+        try:
+            jwt.decode(token, secret)
+        except jwt.DecodeError:
+            error = create_error(3, 'Invalid token')
+            return HttpResponse(json.dumps(error, indent=4))
+        except jwt.ExpiredSignatureError:
+            error = create_error(4, 'Token expired')
+            return HttpResponse(json.dumps(error, indent=4))
+
+        db = get_db()
+        cur = db.cursor()
+
+        sql = """
+        SELECT status
+        FROM `group`
+        WHERE id=%s;
+        """
+
+        cur.execute(sql, (group_id,))
+
+        results = cur.fetchall()
+
+        if len(results) == 0:
+            error = create_error(2, "Group does not exist")
+            return HttpResponse(json.dumps(error, indent=4))
+
+        return HttpResponse(json.dumps({'id': group_id, 'status': json.loads(results[0][0])}, indent=4))
+    error = create_error(1, 'Insufficient parameters')
+    return HttpResponse(json.dumps(error, indent=4))
+
+
 def create_error(error_code, error_description):
-    return {'Error': {'Error Code': error_code, 'Description': error_description}}
+    return {'Error': {'Code': error_code, 'Description': error_description}}

@@ -79,7 +79,7 @@ def index(request):
                                     'phonenumber': row[6]}
                         return HttpResponse(json.dumps(response))
             error = create_error(1, 'Username/password incorrect')
-            return HttpResponse(json.dumps(error, indent=4))
+            return HttpResponse(json.dumps(error, indent=4), status=401)
     elif 'token' in params:
         # Verify token is valid
         token = params['token']
@@ -120,4 +120,4 @@ def index(request):
 
 
 def create_error(error_code, error_description):
-    return {'Error': {'Error Code': error_code, 'Description': error_description}}
+    return {'Error': {'Code': error_code, 'Description': error_description}}
