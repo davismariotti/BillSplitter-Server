@@ -98,7 +98,7 @@ def index(request):
         cur = db.cursor()
 
         sql = '''
-        SELECT `id`, `username`
+        SELECT `id`, `username`, password, email, first_name, last_name, phone_number
         FROM person
         WHERE `id` = %s
         '''
@@ -112,7 +112,13 @@ def index(request):
         else:
             for row in results:
                 if row[0] == decoded['sub']:
-                    return HttpResponse(json.dumps({'id': row[0]}, indent=4))
+                    response = {'id': row[0],
+                                'username': row[1],
+                                'email': row[3],
+                                'firstName': row[4],
+                                'lastName': row[5],
+                                'phoneNumber': row[6]}
+                    return HttpResponse(json.dumps(response, indent=4))
 
     else:
         error = create_error(1, 'Insufficient parameters')
