@@ -77,7 +77,7 @@ def index(request):
                                     'firstName': row[4],
                                     'lastName': row[5],
                                     'phoneNumber': row[6]}
-                        return HttpResponse(json.dumps(response))
+                        return HttpResponse(json.dumps(response, indent=4))
             error = create_error(1, 'Username/password incorrect')
             return HttpResponse(json.dumps(error, indent=4), status=401)
     elif 'token' in params:
