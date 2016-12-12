@@ -99,7 +99,7 @@ def new(request):
         results = cur.fetchall()
 
         if len(results) == 0:
-            return HttpResponse("No results!")  # TODO
+            return HttpResponse("No results!")
 
         status_array = json.loads(results[0][0])
         new_status = []
@@ -187,7 +187,7 @@ def payback(request):
         results = cur.fetchall()
 
         if len(results) == 0:
-            return HttpResponse(json.dumps(create_error(2, "Group does not exist"), indent=4))  # TODO
+            return HttpResponse(json.dumps(create_error(2, "Group does not exist"), indent=4))
 
         status_array = json.loads(results[0][0])
         new_status = []
@@ -200,14 +200,14 @@ def payback(request):
                     recipient = status_data[j]['recipient']
                     if recipient == from_id:
                         amount = status_data[j]['amount']
-                        amount += transaction_amount
+                        amount -= transaction_amount
                         status_data[j]['amount'] = amount
             elif status['id'] == int(from_id):
                 for j in range(0, len(status_data)):
                     recipient = status_data[j]['recipient']
                     if recipient == to_id:
                         amount = status_data[j]['amount']
-                        amount -= transaction_amount
+                        amount += transaction_amount
                         status_data[j]['amount'] = amount
             status['data'] = status_data
             new_status.append(status)
