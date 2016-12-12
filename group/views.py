@@ -124,7 +124,19 @@ def delete(request):
             error = create_error(2, 'Invalid admin rights')
             return HttpResponse(json.dumps(error, indent=4))
 
-        # TODO Check if group is empty?
+        sql = """
+        SELECT COUNT(*)
+        FROM pg
+        WHERE groupId=%s;
+        """
+
+        cur.execute(sql, (group_id,))
+        results = cur.fetchall()
+        num = results[0][0]
+        if num != 0:
+            db.close()
+            error = create_error(6, 'Group is not empty')
+            return HttpResponse(json.dumps(error, indent=4))
 
         # User has admin rights - delete group
         sql = """
@@ -134,10 +146,9 @@ def delete(request):
 
         cur.execute(sql, (group_id,))
         db.commit()
-        results = cur.fetchall()
         cur.close()
         db.close()
-        return HttpResponse(results)
+        return HttpResponse(json.dumps({'Result': 'Success'}, indent=4))
 
     error = create_error(1, 'Insufficient parameters')
     return HttpResponse(json.dumps(error, indent=4))
