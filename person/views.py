@@ -52,11 +52,41 @@ def avatar(request):
             error = create_error(4, 'Token expired')
             return HttpResponse(json.dumps(error, indent=4))
 
-        # subject = decoded['sub']
+        try:
+            user_id = int(params['id'])
+        except ValueError:
+            error = create_error(1, 'Invalid parameters')
+            return HttpResponse(json.dumps(error, indent=4))
 
-        # TODO Check if the user should be able to access the avatar specified
+        subject = decoded['sub']
 
-        user_id = params['id']
+        sql = """
+        SELECT DISTINCT `personId`
+        FROM (
+            SELECT `pg`.`groupId`
+            FROM `pg`
+            WHERE `pg`.`personId` = %s
+        ) t2 INNER JOIN `pg`
+        ON t2.`groupId` = `pg`.`groupId`
+        """
+
+        db = get_db()
+        cur = db.cursor()
+        cur.execute(sql, (subject,))
+        results = cur.fetchall()
+
+        users = []
+
+        for result in results:
+            users.append(result[0])
+
+        if user_id not in users:
+            error = create_error(2, 'Unauthorized')
+            return HttpResponse(json.dumps(error, indent=4))
+
+        cur.close()
+        db.close()
+
         try:
             with open('media/avatar-images/%s.jpg' % user_id, 'rb') as image_file:
                 encoded = image_file.read().encode('base64')
