@@ -112,7 +112,8 @@ def new(request):
                     recipient = status_data[j]['recipient']
                     if recipient in amount_to_pay:
                         amount = status_data[j]['amount']
-                        amount -= amount_to_pay[recipient]
+                        if status['id'] in amount_to_pay:
+                            amount -= amount_to_pay[recipient]
                         status_data[j]['amount'] = amount
             else:
                 for j in range(0, len(status_data)):
@@ -121,7 +122,8 @@ def new(request):
                         amount = status_data[j]['amount']
                         if amount is None:
                             amount = 0.0
-                        amount += amount_to_pay[status['id']]
+                        if status['id'] in amount_to_pay:
+                            amount += amount_to_pay[status['id']]
                         status_data[j]['amount'] = amount
             status['data'] = status_data
             new_status.append(status)
