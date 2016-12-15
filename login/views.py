@@ -54,7 +54,7 @@ def index(request):
         db = get_db()
         cur = db.cursor()
 
-        # Retrieve id, username, password, email, name, and phone number from a person by username
+        # SQL: Retrieve id, username, password, email, name, and phone number from a person by username
         sql = """
         SELECT `id`, `username`, password, email, first_name, last_name, phone_number
         FROM BillSplitter.`person`
@@ -85,8 +85,9 @@ def index(request):
             error = create_error(1, 'Username/password incorrect')
             return HttpResponse(json.dumps(error, indent=4), status=401)
     elif 'token' in params:
-        # Verify token is valid
         token = params['token']
+
+        # Decode token and verify
         try:
             decoded = jwt.decode(token, secret)
         except jwt.DecodeError:
@@ -101,7 +102,7 @@ def index(request):
         db = get_db()
         cur = db.cursor()
 
-        # Select id, username, password, email, name, and phone number of person with given id
+        # SQL: Select id, username, password, email, name, and phone number of person with given id
         sql = '''
         SELECT `id`, `username`, password, email, first_name, last_name, phone_number
         FROM person

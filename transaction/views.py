@@ -58,6 +58,7 @@ def new(request):
             error = create_error(1, 'Invalid parameters')
             return HttpResponse(json.dumps(error))
 
+        # Decode token and verify
         try:
             jwt.decode(token, secret)
         except jwt.DecodeError:
@@ -88,7 +89,7 @@ def new(request):
             error = create_error(1, 'Invalid parameters')
             return HttpResponse(json.dumps(error, indent=4))
 
-        # Get the status data of the group
+        # SQL: Get the status data of the group
         group_sql = '''
         SELECT `status`
         FROM `group`
@@ -104,6 +105,7 @@ def new(request):
         status_array = json.loads(results[0][0])
         new_status = []
 
+        # Modify status data for group
         for i in range(0, len(status_array)):
             status = status_array[i]
             status_data = status['data']
@@ -129,7 +131,7 @@ def new(request):
             new_status.append(status)
         status_string = json.dumps(new_status)
 
-        # Insert the new transaction into the database
+        # SQL: Insert the new transaction into the database
         transaction_sql = '''
         INSERT INTO `transaction` (`payee`, `groupId`, `amount`, `split`, `description`, `date`)
         VALUES (%s, %s, %s, %s, %s, %s)
@@ -137,7 +139,7 @@ def new(request):
 
         cur.execute(transaction_sql, (payee, group_id, transaction_amount, split, description, date))
 
-        # Update the status data of the group
+        # SQL: Update the status data of the group
         update_sql = '''
         UPDATE `group`
         SET status=%s
@@ -181,7 +183,7 @@ def payback(request):
         db = get_db()
         cur = db.cursor()
 
-        # Get the status data of the group
+        # SQL: Get the status data of the group
         group_sql = '''
         SELECT `status`
         FROM `group`
@@ -197,6 +199,7 @@ def payback(request):
         status_array = json.loads(results[0][0])
         new_status = []
 
+        # Modify status data for group
         for i in range(0, len(status_array)):
             status = status_array[i]
             status_data = status['data']
@@ -218,7 +221,7 @@ def payback(request):
             new_status.append(status)
         status_string = json.dumps(new_status)
 
-        # Update the status data of the group
+        # SQL: Update the status data of the group
         update_sql = '''
         UPDATE `group`
         SET status=%s
@@ -241,6 +244,7 @@ def history(request):
         token = params['token']
         group_id = params['groupId']
 
+        # Decode token and verify
         try:
             jwt.decode(token, secret)
         except jwt.DecodeError:
@@ -253,7 +257,7 @@ def history(request):
         db = get_db()
         cur = db.cursor()
 
-        # Get all transactions of a particular group
+        # SQL: Get all transactions of a particular group
         sql = '''
         SELECT payee, groupId, amount, split, description, date
         FROM transaction

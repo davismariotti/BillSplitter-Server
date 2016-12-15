@@ -33,11 +33,6 @@ def index(request):
     return HttpResponse()
 
 
-@csrf_exempt
-def idprovided(request, person=None):
-    return HttpResponse(json.dumps({'id': person}, indent=4))
-
-
 # Returns base64 avatar image for user
 # Takes user id and token as params
 @csrf_exempt
@@ -62,7 +57,8 @@ def avatar(request):
 
         subject = decoded['sub']
 
-        #
+        # SQL: Get all groups that a user belongs to
+        # then get all users in all of those groups
         sql = """
         SELECT DISTINCT `personId`
         FROM (
@@ -75,6 +71,7 @@ def avatar(request):
 
         db = get_db()
         cur = db.cursor()
+
         cur.execute(sql, (subject,))
         results = cur.fetchall()
 
@@ -90,11 +87,11 @@ def avatar(request):
         cur.close()
         db.close()
 
-        try:
+        try:  # Get the image from file
             with open('media/avatar-images/%s.jpg' % user_id, 'rb') as image_file:
                 encoded = image_file.read().encode('base64')
                 return HttpResponse(json.dumps({'image': encoded}, indent=4))
-        except IOError:
+        except IOError:  # Get default image
             with open('media/avatar-images/default.jpg', 'rb') as image_file:
                 encoded = image_file.read().encode('base64')
                 return HttpResponse(json.dumps({'image': encoded}, indent=4))
@@ -114,6 +111,8 @@ def imageupload(request):
     image = params['image']
     if all(x in params for x in ['token', 'image']):
         token = params['token']
+
+        # Decode token and verify
         try:
             decoded = jwt.decode(token, secret)
         except jwt.DecodeError:
@@ -127,6 +126,7 @@ def imageupload(request):
 
         if 'file_data' in image:
             image_data = image['file_data']
+            # Write image data to file
             with open(os.path.join(os.pardir, 'billsplitter/media/avatar-images/%s.jpg' % subject), 'w+') as fh:
                 fh.write(image_data.decode('base64'))
         else:
@@ -140,14 +140,16 @@ def imageupload(request):
 
 
 # Retrieves user information for multiple users
-# Takes user ids and token as params
+# Takes userIds and token as params
 @csrf_exempt
 def info(request):
     params = request.POST
     if all(x in params for x in ['token', 'userIds']):
         token = params['token']
+
+        # Decode token and verify
         try:
-            decoded = jwt.decode(token, secret)
+            jwt.decode(token, secret)
         except jwt.DecodeError:
             error = create_error(3, 'Invalid token')
             return HttpResponse(json.dumps(error, indent=4))
@@ -171,7 +173,7 @@ def info(request):
             sql_tuple += (str(id_),)
         sql_commas = sql_commas[:-2]
 
-        # Retrieve user information for all users corresponding to an id in the list
+        # SQL: Retrieve user information for all users in the userIds list
         sql = """
         SELECT id, username, first_name, last_name, email, phone_number
         FROM person
@@ -184,6 +186,7 @@ def info(request):
         people = []
 
         for result in results:
+            # Build JSON dictionary for 'people'
             people.append({'id': result[0],
                            'username': result[1],
                            'first_name': result[2],
@@ -201,12 +204,12 @@ def info(request):
 def exists(request):
     params = request.POST
     if all(x in params for x in ['token', 'username']):
-
         username = params['username']
         token = params['token']
 
+        # Decode token and verify
         try:
-            decoded = jwt.decode(token, secret)
+            jwt.decode(token, secret)
         except jwt.DecodeError:
             error = create_error(3, 'Invalid token')
             return HttpResponse(json.dumps(error, indent=4))
@@ -214,7 +217,7 @@ def exists(request):
             error = create_error(4, 'Token expired')
             return HttpResponse(json.dumps(error, indent=4))
 
-        # Retrieve the id from a person with a certain username
+        # SQL: Retrieve the id from a person with a certain username
         sql = """
         SELECT id
         FROM person
@@ -230,10 +233,12 @@ def exists(request):
         db.close()
         cur.close()
 
+        # Determine if the user exists
         if len(results) == 0:
             error = create_error(2, "User does not exist")
             return HttpResponse(json.dumps(error, indent=4))
         else:
+            # Return the user's id if so
             return HttpResponse(json.dumps({"id": results[0][0]}, indent=4))
 
     error = create_error(1, 'Insufficient parameters')
@@ -247,7 +252,8 @@ def exists(request):
 def create(request):
     params = request.POST
     if all(x in params for x in ['firstName', 'lastName', 'username', 'email', 'phoneNumber', 'password']):
-        # Variables
+
+        # Get variables
         first_name = params['firstName']
         last_name = params['lastName']
         username = params['username'].lower()
@@ -258,7 +264,7 @@ def create(request):
         db = get_db()
         cur = db.cursor()
 
-        # Check if username is taken
+        # SQL: Check if username is taken
         sql = """
         SELECT `username`
         FROM `BillSplitter`.`person`
@@ -269,12 +275,12 @@ def create(request):
         results = cur.fetchall()
 
         for row in results:
-            if row[0] == username:  # User exists
+            if row[0] == username:  # Username already exists
                 return HttpResponse(json.dumps(create_error(2, 'Username taken'), indent=4))
 
         # Username is not taken
 
-        # Add a new person to the table with specific data
+        # SQL: Add a new person to the table with specified data
         sql = """
         INSERT INTO `person` (`username`, `password`, `first_name`, `last_name`, `email`, `phone_number`)
         VALUES (%s, %s, %s, %s, %s, %s);
@@ -283,6 +289,7 @@ def create(request):
         cur.execute(sql, (username, password, first_name, last_name, email, phone_number))
         db.commit()
 
+        # SQL: Get the id of the user created
         sql = """
         SELECT LAST_INSERT_ID()
         FROM `group`
@@ -306,7 +313,7 @@ def create(request):
 def update(request):
     params = request.POST
 
-    # Check token
+    # Decode token and verify
     if 'token' in params:
         token = params['token']
         try:
@@ -327,7 +334,7 @@ def update(request):
     sql_tuple = ()
 
     # Build sql query
-    # Update user information depending on which items changed
+    # Update user information depending on which attributes specified
     sql_set = ''
     if 'first_name' in params:
         sql_set += '`first_name`=%s, '
@@ -345,6 +352,7 @@ def update(request):
         sql_set += '`password`=%s, '
         sql_tuple += (params['password'],)
 
+    # Add the subject as a parameter to the SQL query
     sql_tuple += (subject,)
 
     # If no parameters are given, no update needs to be done

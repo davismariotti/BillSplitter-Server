@@ -29,7 +29,7 @@ def create(request):
     # Check parameters
     if all(x in params for x in ['token', 'name']):
 
-        # Check token
+        # Decode token and verify
         token = params['token']
         try:
             decoded = jwt.decode(token, secret)
@@ -84,7 +84,7 @@ def delete(request):
         token = params['token']
         group_id = params['group_id']
 
-        # Check token
+        # Decode token and verify
         try:
             decoded = jwt.decode(token, secret)
         except jwt.DecodeError:
@@ -97,7 +97,7 @@ def delete(request):
         db = get_db()
         cur = db.cursor()
 
-        # Check if group exists
+        # SQL: Check if group exists
         sql = """
                 SELECT 1
                 FROM `group`
@@ -106,27 +106,30 @@ def delete(request):
 
         cur.execute(sql, (group_id,))
 
+        # Check if the group exists
         if not cur.rowcount:
             db.close()
             error = create_error(5, 'Group does not exist')
             return HttpResponse(json.dumps(error, indent=4))
 
-        # Check if current user is a group admin
+        # SQL: Check if current user is a group admin
         sql = """
         SELECT 1
         FROM `group`
         WHERE `admin` = %s;
         """
 
+        # Get the user id from the token
         user_id = decoded['sub']
         cur.execute(sql, (user_id,))
 
+        # Check if the user is an admin
         if not cur.rowcount:
             db.close()
             error = create_error(2, 'Invalid admin rights')
             return HttpResponse(json.dumps(error, indent=4))
 
-        # Get the number of users in the group to check if it is empty
+        # SQL: Get the number of users in the group to check if it is empty
         sql = """
         SELECT COUNT(*)
         FROM pg
@@ -135,14 +138,16 @@ def delete(request):
 
         cur.execute(sql, (group_id,))
         results = cur.fetchall()
+
+        # Check if the group is empty
         num = results[0][0]
-        if num != 0:
+        if num != 1:  # The admin should be the only one in the group
             db.close()
             error = create_error(6, 'Group is not empty')
             return HttpResponse(json.dumps(error, indent=4))
 
         # User has admin rights
-        # Delete the group
+        # SQL: Delete the group
         sql = """
         DELETE FROM `group`
         WHERE `id` = %s;
@@ -169,13 +174,14 @@ def adduser(request):
         token = params['token']
 
         try:
+            # Convert to integers
             user_id = int(params['userId'])
             group_id = int(params['groupId'])
         except ValueError:
             error = create_error(1, 'Invalid parameters')
             return HttpResponse(json.dumps(error, indent=4))
 
-        # Check token
+        # Decode token and verify
         try:
             jwt.decode(token, secret)
         except jwt.DecodeError:
@@ -188,7 +194,7 @@ def adduser(request):
         db = get_db()
         cur = db.cursor()
 
-        # Check if user exists
+        # SQL: Check if user exists
         sql = """
         SELECT 1
         FROM `person`
@@ -197,6 +203,7 @@ def adduser(request):
 
         cur.execute(sql, (user_id,))
 
+        # SQL: Check if user exists
         if not cur.rowcount:
             db.close()
             error = create_error(6, 'User does not exist')
@@ -211,6 +218,7 @@ def adduser(request):
 
         cur.execute(sql, (group_id,))
 
+        # Check if group exists
         if not cur.rowcount:
             db.close()
             error = create_error(5, 'Group does not exist')
@@ -218,7 +226,7 @@ def adduser(request):
 
         group_result = cur.fetchall()[0]
 
-        # Check if user is already in group
+        # SQL: Check if user is already in group
         sql = """
         SELECT 1
         FROM `pg`
@@ -227,12 +235,13 @@ def adduser(request):
 
         cur.execute(sql, (user_id, group_id))
 
+        # Check if the user is already in the group
         if cur.rowcount:
             db.close()
             error = create_error(7, 'User already in group')
             return HttpResponse(json.dumps(error, indent=4))
 
-        # Insert user into group
+        # SQL: Insert user into group
         sql = """
         INSERT INTO `pg` (`personId`, `groupId`)
         VALUES (%s, %s);
@@ -244,29 +253,30 @@ def adduser(request):
         statuses = json.loads(group_result[0])
         has_user = False
         ids = []
-        for status in statuses:
-            if status['id'] == user_id:
+        for status_ in statuses:
+            if status_['id'] == user_id:
                 has_user = True
                 continue
 
             # Check if contains specific recipient
             contains = False
-            for recipient_set in status['data']:
+            for recipient_set in status_['data']:
                 if recipient_set['recipient'] == user_id:
                     contains = True
             # Don't change anything if the user already has some data
             if contains:
                 break
-            status['data'].append({'recipient': user_id, 'amount': 0.00})
-            ids.append(status['id'])
+            status_['data'].append({'recipient': user_id, 'amount': 0.00})
+            ids.append(status_['id'])
 
         if not has_user:
+            # Create new status data for users
             new_data = []
             for id_ in ids:
                 new_data.append({'recipient': id_, 'amount': 0.00})
             statuses.append({'id': user_id, 'data': new_data})
 
-        # Update status data in the group
+        # SQL: Update status data in the group
         sql = '''
         UPDATE `group`
         SET status = %s
@@ -296,7 +306,7 @@ def removeuser(request):
         user_id = params['userId']
         group_id = params['groupId']
 
-        # Check token
+        # Decode token and verify
         try:
             jwt.decode(token, secret)
         except jwt.DecodeError:
@@ -309,7 +319,7 @@ def removeuser(request):
         db = get_db()
         cur = db.cursor()
 
-        # Check if user exists
+        # SQL: Check if user exists
         sql = """
         SELECT 1
         FROM `person`
@@ -318,12 +328,13 @@ def removeuser(request):
 
         cur.execute(sql, (user_id,))
 
+        # Check if user exists
         if not cur.rowcount:
             db.close()
             error = create_error(6, 'User does not exist')
             return HttpResponse(json.dumps(error, indent=4))
 
-        # Check if group exists
+        # SQL: Check if the group exists
         sql = """
         SELECT 1
         FROM `group`
@@ -332,12 +343,13 @@ def removeuser(request):
 
         cur.execute(sql, (group_id,))
 
+        # Check if the group exists
         if not cur.rowcount:
             db.close()
             error = create_error(5, 'Group does not exist')
             return HttpResponse(json.dumps(error, indent=4))
 
-        # Check if user is in group
+        # SQL: Check if user is in group
         sql = """
         SELECT 1
         FROM `pg`
@@ -351,7 +363,7 @@ def removeuser(request):
             error = create_error(8, 'User not in group')
             return HttpResponse(json.dumps(error, indent=4))
 
-        # Delete user from group
+        # SQL: Delete user from group
         sql = """
         DELETE FROM `pg`
         WHERE `personId` = %s and `groupId` = %s;
@@ -359,7 +371,6 @@ def removeuser(request):
 
         cur.execute(sql, (user_id, group_id))
         db.commit()
-        results = cur.fetchall()
         db.close()
 
         return HttpResponse(json.dumps({'Result': 'Success'}, indent=4))
@@ -378,7 +389,7 @@ def info(request):
         token = params['token']
         user_id = params['userId']
 
-        # Check token
+        # Decode token and verify
         try:
             jwt.decode(token, secret)
         except jwt.DecodeError:
@@ -391,24 +402,26 @@ def info(request):
         db = get_db()
         cur = db.cursor()
 
-        # Get all group data that the user belongs to
+        # SQL: Get all group data that the user belongs to
         sql = """
               SELECT id, `name`, status
               FROM `pg`
               JOIN `group`
               WHERE pg.personId = %s
-              AND pg.groupId = group.id;
+              AND pg.groupId = `group`.id;
         """
 
         cur.execute(sql, (user_id,))
         results = cur.fetchall()
         response = []
+
+        # Build JSON dictionary with all group, transaction and user information
         for result in results:
             id_ = result[0]
             name = result[1]
-            status = json.loads(result[2])
+            status_ = json.loads(result[2])
 
-            # Get transaction data in each group
+            # SQL: Get transaction data in each group
             sql = """
             SELECT payee, amount, split, description, date
             FROM transaction
@@ -427,7 +440,7 @@ def info(request):
                                      'description': result_[3],
                                      'date': result_[4].strftime('%Y-%m-%d')})
 
-            # Get a list of other members in the group
+            # SQL: Get a list of other members in the group
             sql = """
             SELECT personId
             FROM pg
@@ -445,7 +458,7 @@ def info(request):
             dict_ = {
                 'id': id_,
                 'name': name,
-                'status': status,
+                'status': status_,
                 'transactions': transactions,
                 'members': members
             }
@@ -466,7 +479,7 @@ def status(request):
         token = params['token']
         group_id = params['groupId']
 
-        # Check token
+        # Decode token and verify
         try:
             jwt.decode(token, secret)
         except jwt.DecodeError:
@@ -479,7 +492,7 @@ def status(request):
         db = get_db()
         cur = db.cursor()
 
-        # Get the status of the specified group
+        # SQL: Get the status of the specified group
         sql = """
         SELECT status
         FROM `group`
@@ -490,6 +503,7 @@ def status(request):
 
         results = cur.fetchall()
 
+        # Check if the group exists
         if len(results) == 0:
             error = create_error(2, "Group does not exist")
             return HttpResponse(json.dumps(error, indent=4))
