@@ -42,6 +42,8 @@ def make_token(sub):
     return jwt.encode(payload, secret, algorithm='HS256')
 
 
+# Query the server for user information to allow log in
+# Accepts either username/password as parameters or a token
 @csrf_exempt  # Allows POST requests without CSRF cookie handling
 def index(request):
     params = request.POST
@@ -52,6 +54,7 @@ def index(request):
         db = get_db()
         cur = db.cursor()
 
+        # Retrieve id, username, password, email, name, and phone number from a person by username
         sql = """
         SELECT `id`, `username`, password, email, first_name, last_name, phone_number
         FROM BillSplitter.`person`
@@ -70,6 +73,7 @@ def index(request):
             for row in results:
                 if row[1] == username:
                     if password == row[2]:
+                        # Return user information plus token
                         response = {'id': row[0],
                                     'username': row[1],
                                     'token': make_token(row[0]),
@@ -97,6 +101,7 @@ def index(request):
         db = get_db()
         cur = db.cursor()
 
+        # Select id, username, password, email, name, and phone number of person with given id
         sql = '''
         SELECT `id`, `username`, password, email, first_name, last_name, phone_number
         FROM person
@@ -106,10 +111,12 @@ def index(request):
         cur.execute(sql, (decoded['sub'],))
         results = cur.fetchall()
 
+        # Validate token
         if len(results) == 0:
             error = create_error(3, 'Invalid token')
             return HttpResponse(json.dumps(error, indent=4))
         else:
+            # Return user information
             for row in results:
                 if row[0] == decoded['sub']:
                     response = {'id': row[0],

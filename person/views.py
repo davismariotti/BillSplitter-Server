@@ -38,6 +38,8 @@ def idprovided(request, person=None):
     return HttpResponse(json.dumps({'id': person}, indent=4))
 
 
+# Returns base64 avatar image for user
+# Takes user id and token as params
 @csrf_exempt
 def avatar(request):
     params = request.POST
@@ -60,6 +62,7 @@ def avatar(request):
 
         subject = decoded['sub']
 
+        #
         sql = """
         SELECT DISTINCT `personId`
         FROM (
@@ -99,6 +102,7 @@ def avatar(request):
     return HttpResponse(json.dumps(error, indent=4))
 
 
+# Stores avatar image from base64 data
 @csrf_exempt
 def imageupload(request):
     try:
@@ -135,6 +139,8 @@ def imageupload(request):
     return HttpResponse(json.dumps({'hurray': 'yay'}, indent=4))
 
 
+# Retrieves user information for multiple users
+# Takes user ids and token as params
 @csrf_exempt
 def info(request):
     params = request.POST
@@ -165,6 +171,7 @@ def info(request):
             sql_tuple += (str(id_),)
         sql_commas = sql_commas[:-2]
 
+        # Retrieve user information for all users corresponding to an id in the list
         sql = """
         SELECT id, username, first_name, last_name, email, phone_number
         FROM person
@@ -207,6 +214,7 @@ def exists(request):
             error = create_error(4, 'Token expired')
             return HttpResponse(json.dumps(error, indent=4))
 
+        # Retrieve the id from a person with a certain username
         sql = """
         SELECT id
         FROM person
@@ -232,6 +240,7 @@ def exists(request):
     return HttpResponse(json.dumps(error, indent=4))
 
 
+# Creates a new user
 @sensitive_variables('email', 'password')
 @sensitive_post_parameters('email', 'password')
 @csrf_exempt
@@ -265,6 +274,7 @@ def create(request):
 
         # Username is not taken
 
+        # Add a new person to the table with specific data
         sql = """
         INSERT INTO `person` (`username`, `password`, `first_name`, `last_name`, `email`, `phone_number`)
         VALUES (%s, %s, %s, %s, %s, %s);
@@ -290,6 +300,8 @@ def create(request):
     return HttpResponse(json.dumps(error, indent=4))
 
 
+# Update account information for user
+# Takes token as param
 @csrf_exempt
 def update(request):
     params = request.POST
@@ -315,6 +327,7 @@ def update(request):
     sql_tuple = ()
 
     # Build sql query
+    # Update user information depending on which items changed
     sql_set = ''
     if 'first_name' in params:
         sql_set += '`first_name`=%s, '
@@ -347,6 +360,7 @@ def update(request):
     cur = db.cursor()
 
     # Build full query
+    # Update user information for specified data
     sql = """
     UPDATE `BillSplitter`.`person`
     SET """ + sql_set + """
