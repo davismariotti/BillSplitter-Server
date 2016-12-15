@@ -43,9 +43,10 @@ def create(request):
         name = params['name']
         admin = decoded["sub"]
 
-        # Create group
         db = get_db()
         cur = db.cursor()
+
+        # Create a group
         sql = """
         INSERT INTO `group` (`name`, `admin`)
         VALUES (%s, %s);
@@ -54,6 +55,7 @@ def create(request):
         cur.execute(sql, (name, admin))
         db.commit()
 
+        # Get the id of the created group
         sql = """
         SELECT LAST_INSERT_ID()
         FROM `group`
@@ -124,6 +126,7 @@ def delete(request):
             error = create_error(2, 'Invalid admin rights')
             return HttpResponse(json.dumps(error, indent=4))
 
+        # Get the number of users in the group to check if it is empty
         sql = """
         SELECT COUNT(*)
         FROM pg
@@ -138,7 +141,8 @@ def delete(request):
             error = create_error(6, 'Group is not empty')
             return HttpResponse(json.dumps(error, indent=4))
 
-        # User has admin rights - delete group
+        # User has admin rights
+        # Delete the group
         sql = """
         DELETE FROM `group`
         WHERE `id` = %s;
@@ -198,7 +202,7 @@ def adduser(request):
             error = create_error(6, 'User does not exist')
             return HttpResponse(json.dumps(error, indent=4))
 
-        # Check if group exists
+        # Check if group exists and get status data
         sql = """
         SELECT status
         FROM `group`
@@ -262,6 +266,7 @@ def adduser(request):
                 new_data.append({'recipient': id_, 'amount': 0.00})
             statuses.append({'id': user_id, 'data': new_data})
 
+        # Update status data in the group
         sql = '''
         UPDATE `group`
         SET status = %s
@@ -386,6 +391,7 @@ def info(request):
         db = get_db()
         cur = db.cursor()
 
+        # Get all group data that the user belongs to
         sql = """
               SELECT id, `name`, status
               FROM `pg`
@@ -402,6 +408,7 @@ def info(request):
             name = result[1]
             status = json.loads(result[2])
 
+            # Get transaction data in each group
             sql = """
             SELECT payee, amount, split, description, date
             FROM transaction
@@ -419,6 +426,8 @@ def info(request):
                                      'split': json.loads(result_[2]),
                                      'description': result_[3],
                                      'date': result_[4].strftime('%Y-%m-%d')})
+
+            # Get a list of other members in the group
             sql = """
             SELECT personId
             FROM pg
@@ -470,6 +479,7 @@ def status(request):
         db = get_db()
         cur = db.cursor()
 
+        # Get the status of the specified group
         sql = """
         SELECT status
         FROM `group`
