@@ -292,7 +292,7 @@ def create(request):
         # SQL: Get the id of the user created
         sql = """
         SELECT LAST_INSERT_ID()
-        FROM `group`
+        FROM `person`
         """
 
         cur.execute(sql)
